@@ -2,7 +2,16 @@
 
 Easily integrate WebSockets into your ExpressJS application.
 
-### About
+1. [Installation](#installation)
+2. [Usage](#usage)
+3. [Making Requests](#making-requests)
+   1. [Standard Route Requests](#standard-route-requests)
+   2. [Subscription Requests](#subscription-requests)
+4. [Response](#response)
+5. [Broadcasting](#broadcasting)
+   1. [Limitations](#limitations)
+6. [Debugging](#debugging)
+7. [Testing and Linting](#testing-and-linting)
 
 ---
 
