@@ -1,6 +1,7 @@
 {
   "name": "wsexpress",
   "version": "0.0.2",
+  "keywords": ["websocket", "express", "ws"],
   "description": "Easily integrate websockets into your ExpressJS application",
   "main": "lib/index.js",
   "repository": "git@github.com:nwilging/wsexpress.git",
