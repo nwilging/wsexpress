@@ -3,14 +3,29 @@ import {IncomingMessage, Server as HttpServer, ServerResponse} from "http";
 import {Duplex} from "stream";
 import ConnectionManager from "./connectionManager";
 import Router from "../router";
-import Client from "./client";
+import Client, {EventSubscription} from "./client";
 import {Express, Request, Response} from "express";
 const debug = require("debug")('wsexpress-server');
 
-export interface ClientMessage
+export type ClientMessageType = 'route' | 'subscription';
+
+export interface ClientRouteMessage
 {
     route: string;
     method: string;
+    body?: any;
+}
+
+export interface ClientSubscriptionMessage
+{
+    eventName: string;
+    subscriptionId?: string;
+}
+
+export interface ClientMessage
+{
+    type: ClientMessageType;
+    message: ClientRouteMessage | ClientSubscriptionMessage;
 }
 
 export interface ClientResponse
@@ -64,10 +79,22 @@ export default class Server
         const parsed = JSON.parse(message.toString()) as ClientMessage;
         if (!parsed) return;
 
-        const route = Router.getRoute(parsed.route, parsed.method);
+        switch (parsed.type) {
+            case 'route':
+                this.handleClientRouteMessage(client, parsed.message as ClientRouteMessage, parsed);
+                break;
+            case 'subscription':
+                this.handleClientSubscriptionMessage(client, parsed.message as ClientSubscriptionMessage, parsed);
+                break;
+        }
+    }
+
+    protected static handleClientRouteMessage (client: Client, message: ClientRouteMessage, request: ClientMessage): void
+    {
+        const route = Router.getRoute(message.route, message.method);
         if (!route) {
             client.reply({
-                request: parsed,
+                request,
                 response: {
                     status: 404,
                 },
@@ -75,15 +102,20 @@ export default class Server
             return;
         }
 
-        const request = this.buildRequest(client);
-        const response = this.buildResponse(client);
+        const routeRequest = this.buildRequest(client);
+        const routeResponse = this.buildResponse(client);
 
-        response.send = (body?: any): any => {
+        if (routeResponse.req) routeResponse.req.method = message.method;
+
+        routeRequest.method = message.method;
+        routeRequest.body = message.body;
+
+        routeResponse.send = (body?: any): any => {
             const wsResponse = {
-                request: parsed,
+                request,
                 response: {
                     body,
-                    status: response.statusCode,
+                    status: routeResponse.statusCode,
                 },
             };
 
@@ -91,7 +123,29 @@ export default class Server
             debug('replied to client %s (size %d)', client.clientAddress(), Buffer.from(JSON.stringify(wsResponse)).length);
         };
 
-        route.handle(request, response, (error: any) => console.error(error));
+        route.handle(routeRequest, routeResponse, (error: any) => console.error('error: ' + error));
+    }
+
+    protected static handleClientSubscriptionMessage (client: Client, message: ClientSubscriptionMessage, request: ClientMessage): void
+    {
+        const subscription: EventSubscription = {
+            request,
+            eventName: message.eventName,
+            subscriptionId: message.subscriptionId,
+        };
+
+        client.addSubscription(subscription);
+
+        const reply: ClientResponse = {
+            request,
+            response: {
+                status: 200,
+                body: {
+                    subscription: message,
+                },
+            },
+        };
+        client.reply(reply);
     }
 
     protected static buildRequest (client: Client): Request
