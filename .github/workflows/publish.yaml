@@ -39,10 +39,11 @@ jobs:
         release_name: Release ${{ github.ref }}
         draft: false
         prerelease: false
-    - name: Publish
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+    - name: Build
       run: |
-        yarn install
-        yarn prepare
-        npm publish
+        yarn && yarn prepare
+    - name: Publish
+      uses: JS-DevTools/npm-publish@v1
+      with:
+        token: ${{ secrets.NPM_AUTH_TOKEN }}
+        tag: ${{ github.ref }}
