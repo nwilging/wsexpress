@@ -1,6 +1,7 @@
 import {Express, NextFunction, Request, RequestHandler, Response} from "express";
 import Router from "./router";
 import Server from "./websocket/server";
+import ConnectionManager from "./websocket/connectionManager";
 const debug = require("debug")('wsexpress-http');
 
 export type wsExpressParameters = {
@@ -19,4 +20,8 @@ export const wsExpress = (params: wsExpressParameters): RequestHandler => {
 export const listen = (params: wsExpressParameters, port: number, callback?: (() => void)): void => {
     const httpServer = params.app.listen(port, callback);
     Server.initialize(params.app, httpServer);
+};
+
+export const broadcast = (eventName: string, body: any, subscriptionId?: string): void => {
+    ConnectionManager.broadcast(eventName, body, subscriptionId);
 };

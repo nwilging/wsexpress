@@ -1,6 +1,6 @@
 import Client from "../../src/websocket/client";
 import {ClientResponse} from "../../src/websocket/server";
-import EventEmitter from "events";
+import {EventEmitter} from "events";
 
 describe ('test websocket client', () => {
     test ('test instantiation binds websocket listeners', () => {
@@ -61,8 +61,11 @@ describe ('test websocket client', () => {
 
         const message: ClientResponse = {
             request: {
-                route: '/',
-                method: 'get',
+                type: 'route',
+                message: {
+                    route: '/',
+                    method: 'get',
+                },
             },
             response: {
                 status: 200,
@@ -109,5 +112,77 @@ describe ('test websocket client', () => {
 
         expect(closeEmitted).toHaveBeenCalledTimes(1);
         expect(closeEmitted).toHaveBeenCalledWith(client);
+    });
+
+    test ('test add subscription adds subscription', () => {
+        const wsMock: any = new class extends EventEmitter {};
+        const requestMock: any = {};
+
+        const client = new Client(wsMock, requestMock);
+        const eventName = 'test-event';
+
+        expect(client.getSubscription(eventName)).toBeNull();
+
+        const subscription = {
+            eventName,
+            request: requestMock,
+        };
+        client.addSubscription(subscription);
+
+        expect(client.getSubscription(eventName)).toBe(subscription);
+    });
+
+    test ('test add subscription does not add subscription if it already exists', () => {
+        const wsMock: any = new class extends EventEmitter {};
+        const requestMock: any = {};
+
+        const client = new Client(wsMock, requestMock);
+        const eventName = 'test-event';
+
+        // @ts-ignore
+        expect(client.subscriptions).toEqual([]);
+
+        const subscription = {
+            eventName,
+            request: requestMock,
+        };
+
+        client.addSubscription(subscription);
+        client.addSubscription(subscription);
+
+        expect(client.getSubscription(eventName)).toBe(subscription);
+        // @ts-ignore
+        expect(client.subscriptions).toHaveLength(1);
+    });
+
+    test ('test add subscription adds duplicate subscription with subscriptionId specified', () => {
+        const wsMock: any = new class extends EventEmitter {};
+        const requestMock: any = {};
+
+        const client = new Client(wsMock, requestMock);
+        const eventName = 'test-event';
+
+        // @ts-ignore
+        expect(client.subscriptions).toEqual([]);
+
+        const subscription1 = {
+            eventName,
+            request: requestMock,
+        };
+
+        const subscription2 = {
+            eventName,
+            subscriptionId: 'test-id',
+            request: requestMock,
+        };
+
+        client.addSubscription(subscription1);
+        client.addSubscription(subscription2);
+
+        expect(client.getSubscription(eventName)).toBe(subscription1);
+        expect(client.getSubscription(eventName, 'test-id')).toBe(subscription2);
+
+        // @ts-ignore
+        expect(client.subscriptions).toHaveLength(2);
     });
 });

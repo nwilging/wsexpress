@@ -12,6 +12,22 @@ export default class ConnectionManager
         return this.clients;
     }
 
+    public static broadcast (eventName: string, body: any, subscriptionId?: string): void
+    {
+        for (const client of this.clients) {
+            const subscription = client.getSubscription(eventName, subscriptionId);
+            if (!subscription) continue;
+
+            client.reply({
+                request: subscription.request,
+                response: {
+                    status: 200,
+                    body,
+                },
+            });
+        }
+    }
+
     public static handleConnection (ws: WebSocket, request: IncomingMessage): Client
     {
         const client = new Client(ws, request);

@@ -1,13 +1,23 @@
-import EventEmitter from "events";
+import {EventEmitter} from "events";
 import WebSocket, {RawData} from "ws";
 import {IncomingMessage} from "http";
-import {ClientResponse} from "./server";
+import {ClientMessage, ClientResponse} from "./server";
 const debug = require("debug")('wsexpress-client');
+
+export interface EventSubscription
+{
+    eventName: string;
+    subscriptionId?: string;
+
+    request: ClientMessage;
+}
 
 export default class Client extends EventEmitter
 {
     protected ws: WebSocket;
     protected upgradeRequest: IncomingMessage;
+
+    protected subscriptions: Array<EventSubscription> = [];
 
     public constructor (ws: WebSocket, upgradeRequest: IncomingMessage)
     {
@@ -24,6 +34,27 @@ export default class Client extends EventEmitter
         this.ws.on('close', () => {
             this.emit('disconnect', this);
         });
+    }
+
+    public addSubscription (subscription: EventSubscription): void
+    {
+        if (this.getSubscription(subscription.eventName, subscription.subscriptionId)) {
+            return;
+        }
+
+        this.subscriptions.push(subscription);
+    }
+
+    public getSubscription (eventName: string, subscriptionId?: string): EventSubscription | null
+    {
+        return this.subscriptions.filter((subscription: EventSubscription) => {
+            return this.subscriptionComparison(subscription, eventName, subscriptionId);
+        })[0] || null;
+    }
+
+    protected subscriptionComparison (comparingTo: EventSubscription, eventName: string, subscriptionId?: string): boolean
+    {
+        return comparingTo.eventName === eventName && ((subscriptionId) ? comparingTo.subscriptionId === subscriptionId : true);
     }
 
     public reply (message: ClientResponse): void

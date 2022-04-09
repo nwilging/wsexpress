@@ -133,8 +133,11 @@ describe ('test server', () => {
         when(ServerResponse).calledWith(requestMock).mockReturnValue(serverResponseMock);
 
         const message: any = Buffer.from(JSON.stringify({
-            route: '/test',
-            method: 'get',
+            type: 'route',
+            message: {
+                route: '/test',
+                method: 'get',
+            },
         }));
 
         const routeMock: any = {
@@ -157,8 +160,11 @@ describe ('test server', () => {
 
         const expectedMessage = {
             request: {
-                route: '/test',
-                method: 'get',
+                type: 'route',
+                message: {
+                    route: '/test',
+                    method: 'get',
+                },
             },
             response: {
                 status: 200,
@@ -207,8 +213,11 @@ describe ('test server', () => {
         when(ServerResponse).calledWith(requestMock).mockReturnValue(serverResponseMock);
 
         const message: any = Buffer.from(JSON.stringify({
-            route: '/test',
-            method: 'get',
+            type: 'route',
+            message: {
+                route: '/test',
+                method: 'get',
+            },
         }));
 
         when(Router.getRoute).calledWith('/test', 'get').mockReturnValue(null);
@@ -217,13 +226,95 @@ describe ('test server', () => {
 
         const expectedMessage = {
             request: {
-                route: '/test',
-                method: 'get',
+                type: 'route',
+                message: {
+                    route: '/test',
+                    method: 'get',
+                },
             },
             response: {
                 status: 404,
             },
         };
+
+        expect(clientMock.reply).toHaveBeenCalledTimes(1);
+        expect(clientMock.reply).toHaveBeenCalledWith(expectedMessage);
+    });
+
+    test ('test subscription request adds subscription to client', () => {
+        const expressMock: any = {
+            request: {},
+            response: {},
+        };
+        const httpMock: any = {
+            on: jest.fn(),
+        };
+
+        const wsServerMock: any = new class extends EventEmitter {};
+
+        // @ts-ignore
+        when(WsServer).calledWith({ noServer: true }).mockReturnValue(wsServerMock);
+
+        Server.initialize(expressMock, httpMock);
+
+        const wsMock: any = {};
+        const requestMock: any = {};
+
+        const clientMock: any = new class extends EventEmitter {
+            getUpgradeRequest = jest.fn();
+            reply = jest.fn();
+            addSubscription = jest.fn();
+        };
+
+        when(ConnectionManager.handleConnection).calledWith(wsMock, requestMock).mockReturnValue(clientMock);
+        when(clientMock.getUpgradeRequest).calledWith().mockReturnValue(requestMock);
+
+        wsServerMock.emit('connection', wsMock, requestMock);
+
+        expect(ConnectionManager.handleConnection).toHaveBeenCalledTimes(1);
+        expect(ConnectionManager.handleConnection).toHaveBeenCalledWith(wsMock, requestMock);
+
+        const message: any = Buffer.from(JSON.stringify({
+            type: 'subscription',
+            message: {
+                eventName: 'test-event',
+                subscriptionId: 'test-id',
+            },
+        }));
+
+        clientMock.emit('message', clientMock, message);
+
+        const expectedMessage = {
+            request: {
+                type: 'subscription',
+                message: {
+                    eventName: 'test-event',
+                    subscriptionId: 'test-id',
+                },
+            },
+            response: {
+                status: 200,
+                body: {
+                    subscription: {
+                        eventName: 'test-event',
+                        subscriptionId: 'test-id',
+                    },
+                },
+            },
+        };
+
+        expect(clientMock.addSubscription).toHaveBeenCalledTimes(1);
+        expect(clientMock.addSubscription).toHaveBeenCalledWith({
+            eventName: 'test-event',
+            subscriptionId: 'test-id',
+            request: {
+                type: 'subscription',
+                message: {
+                    eventName: 'test-event',
+                    subscriptionId: 'test-id',
+                },
+            },
+        });
 
         expect(clientMock.reply).toHaveBeenCalledTimes(1);
         expect(clientMock.reply).toHaveBeenCalledWith(expectedMessage);
