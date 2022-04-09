@@ -1,4 +1,5 @@
 import {IRoute} from "express";
+const debug = require("debug")('wsexpress-router');
 
 export type Layer = {
     handle: Function;
@@ -31,10 +32,29 @@ export default class Router
     {
         if (!layer.route) return;
         this.routes[layer.route.path] = layer;
+
+        // @ts-ignore
+        debug('booted route %s %s', layer.route.path, this.getRouteMethods(layer).join(','));
     }
 
-    public static getRoute (path: string): Layer|null
+    public static getRoute (path: string, method: string): Layer|null
     {
-        return this.routes[path] || null;
+        const route = this.routes[path];
+        if (!route) return null;
+
+        const methods = this.getRouteMethods(route);
+        return (methods.includes(method.toLowerCase())) ? route : null;
+    }
+
+    protected static getRouteMethods (route: Layer): Array<string>
+    {
+        /**
+         * The `methods` attributes exists on the route, but is not present in the typings
+         */
+            // @ts-ignore
+        const routeMethods: { [method: string]: boolean } = route.route?.methods || {};
+        return Object.keys(routeMethods)
+            .filter((method: string) => routeMethods[method])
+            .map((method: string) => method.toLowerCase());
     }
 }

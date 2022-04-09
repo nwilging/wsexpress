@@ -1,10 +1,16 @@
 import WebSocket from "ws";
 import Client from "./client";
 import {IncomingMessage} from "http";
+const debug = require("debug")('wsexpress-connections');
 
 export default class ConnectionManager
 {
     protected static clients: Array<Client> = [];
+
+    public static getClients (): Array<Client>
+    {
+        return this.clients;
+    }
 
     public static handleConnection (ws: WebSocket, request: IncomingMessage): Client
     {
@@ -12,6 +18,8 @@ export default class ConnectionManager
         client.on('disconnect', this.handleDisconnect.bind(this));
 
         this.clients.push(client);
+
+        debug('new client connection: %s', client.clientAddress());
         return client;
     }
 
@@ -21,5 +29,6 @@ export default class ConnectionManager
         if (index === -1) return;
 
         this.clients.splice(index, 1);
+        debug('client disconnected: %s', client.clientAddress());
     }
 }

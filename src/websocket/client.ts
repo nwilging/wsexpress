@@ -1,6 +1,8 @@
 import EventEmitter from "events";
 import WebSocket, {RawData} from "ws";
 import {IncomingMessage} from "http";
+import {ClientResponse} from "./server";
+const debug = require("debug")('wsexpress-client');
 
 export default class Client extends EventEmitter
 {
@@ -16,16 +18,17 @@ export default class Client extends EventEmitter
 
         this.ws.on('message', (message: RawData) => {
             this.emit('message', this, message);
+            debug('client %s received message (size %d)', this.clientAddress(), Buffer.from(message.toString()).length);
         });
 
-        this.ws.on('close', (ws: WebSocket, code: number, reason: Buffer) => {
+        this.ws.on('close', () => {
             this.emit('disconnect', this);
         });
     }
 
-    public reply (message: Buffer): void
+    public reply (message: ClientResponse): void
     {
-        this.ws.send(message);
+        this.ws.send(JSON.stringify(message));
     }
 
     public close (): void
@@ -36,5 +39,20 @@ export default class Client extends EventEmitter
     public getUpgradeRequest (): IncomingMessage
     {
         return this.upgradeRequest;
+    }
+
+    public getAddress (): string | undefined
+    {
+        return this.upgradeRequest.socket.remoteAddress;
+    }
+
+    public getPort (): number | undefined
+    {
+        return this.upgradeRequest.socket.remotePort;
+    }
+
+    public clientAddress (): string
+    {
+        return this.getAddress() + ':' + this.getPort();
     }
 }

@@ -1,0 +1,11 @@
+name: Pull Request
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test-and-lint:
+    name: Test and Lint
+    uses: ./.github/workflows/test-and-lint.yaml

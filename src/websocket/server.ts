@@ -4,8 +4,8 @@ import {Duplex} from "stream";
 import ConnectionManager from "./connectionManager";
 import Router from "../router";
 import Client from "./client";
-import * as express from "express";
-import {Application} from "express";
+import {Express, Request, Response} from "express";
+const debug = require("debug")('wsexpress-server');
 
 export interface ClientMessage
 {
@@ -13,13 +13,22 @@ export interface ClientMessage
     method: string;
 }
 
+export interface ClientResponse
+{
+    request: ClientMessage;
+    response: {
+        status: number;
+        body?: any;
+    },
+}
+
 export default class Server
 {
     protected static ws: WsServer;
-    protected static express: Application;
+    protected static express: Express;
     protected static http: HttpServer;
 
-    public static initialize (express: Application, http: HttpServer): void
+    public static initialize (express: Express, http: HttpServer): void
     {
         this.http = http;
         this.express = express;
@@ -39,6 +48,7 @@ export default class Server
     {
         this.http.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer): void => {
             this.handleUpgrade(req, socket, head);
+            debug('upgrade request from %s:%s', req.socket.remoteAddress, req.socket.remotePort);
         });
 
         this.ws.on('connection', (ws: WebSocket, request: IncomingMessage) => {
@@ -54,14 +64,47 @@ export default class Server
         const parsed = JSON.parse(message.toString()) as ClientMessage;
         if (!parsed) return;
 
-        const route = Router.getRoute(parsed.route);
-        if (!route) return;
+        const route = Router.getRoute(parsed.route, parsed.method);
+        if (!route) {
+            client.reply({
+                request: parsed,
+                response: {
+                    status: 404,
+                },
+            });
+            return;
+        }
 
-        // @ts-ignore
-        const response = this.express.response;
-        const req = { ...client.getUpgradeRequest(), headers: { ...client.getUpgradeRequest().headers, 'Content-Type': 'application/json' }};
+        const request = this.buildRequest(client);
+        const response = this.buildResponse(client);
 
-        const result = route.handle(req, response, (error: any) => console.error(error));
-        console.log(result);
+        response.send = (body?: any): any => {
+            const wsResponse = {
+                request: parsed,
+                response: {
+                    body,
+                    status: response.statusCode,
+                },
+            };
+
+            client.reply(wsResponse);
+            debug('replied to client %s (size %d)', client.clientAddress(), Buffer.from(JSON.stringify(wsResponse)).length);
+        };
+
+        route.handle(request, response, (error: any) => console.error(error));
+    }
+
+    protected static buildRequest (client: Client): Request
+    {
+        return Object.assign(this.express.request, client.getUpgradeRequest());
+    }
+
+    protected static buildResponse (client: Client): Response
+    {
+        return Object.assign(
+            this.express.response,
+            new ServerResponse(client.getUpgradeRequest()),
+            { app: this.express },
+        );
     }
 }
