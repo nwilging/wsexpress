@@ -10,7 +10,7 @@
   "main": "lib/index.js",
   "repository": "git@github.com:nwilging/wsexpress.git",
   "author": "Nick <nick@epautomotive.org>",
-  "license": "GLPv3",
+  "license": "GPLv3",
   "scripts": {
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
