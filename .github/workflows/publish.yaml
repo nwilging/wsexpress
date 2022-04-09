@@ -47,3 +47,4 @@ jobs:
       with:
         token: ${{ secrets.NPM_AUTH_TOKEN }}
         tag: ${{ github.ref }}
+        check-version: false
